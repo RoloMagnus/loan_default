@@ -10,3 +10,5 @@ work/optuna*.db
 .DS_Store
 Thumbs.db
 ~$*
+catboost_info/
+work/*.npy
