@@ -40,13 +40,16 @@ def objective(t):
 
 
 t0 = time.time()
-study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=7))
-study.enqueue_trial(dict(learning_rate=0.03, num_leaves=63, max_depth=10, min_child_samples=40, feature_fraction=0.8,
-                         bagging_fraction=0.8, lambda_l1=0.001, lambda_l2=1.0, min_gain_to_split=0.0, cat_smooth=10))
+study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=7),
+                            study_name="lgb_acc", storage=f"sqlite:///{os.path.join(HERE, 'optuna_lgb.db')}", load_if_exists=True)
+if len(study.trials) == 0:
+    study.enqueue_trial(dict(learning_rate=0.03, num_leaves=63, max_depth=10, min_child_samples=40, feature_fraction=0.8,
+                             bagging_fraction=0.8, lambda_l1=0.001, lambda_l2=1.0, min_gain_to_split=0.0, cat_smooth=10))
 study.optimize(objective, n_trials=N_TRIALS)
-print("BEST", study.best_value, json.dumps(study.best_params), f"{time.time()-t0:.0f}s", flush=True)
-best = dict(objective="binary", verbose=-1, n_jobs=6, seed=42, bagging_freq=1, **study.best_params)
-acc, oof, iters = cv(best, return_oof=True)
-print("refit CV acc", acc, "iters", iters)
-json.dump({"params": study.best_params, "iters": iters, "cv_acc": acc}, open(os.path.join(HERE, "lgb_best.json"), "w"), indent=1)
-np.save(os.path.join(HERE, "oof_lgb_tuned.npy"), oof)
+print("BEST", study.best_value, json.dumps(study.best_params), f"total trials={len(study.trials)} {time.time()-t0:.0f}s", flush=True)
+if "--final" in sys.argv:
+    best = dict(objective="binary", verbose=-1, n_jobs=6, seed=42, bagging_freq=1, **study.best_params)
+    acc, oof, iters = cv(best, return_oof=True)
+    print("refit CV acc", acc, "iters", iters)
+    json.dump({"params": study.best_params, "iters": iters, "cv_acc": acc}, open(os.path.join(HERE, "lgb_best.json"), "w"), indent=1)
+    np.save(os.path.join(HERE, "oof_lgb_tuned.npy"), oof)
