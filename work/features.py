@@ -66,11 +66,46 @@ def add_vintage(d, raw, vf):
     return d
 
 
-def build(tr, te):
+def add_schedule_exact(d, raw, max_k=60):
+    """Exact integer-installment amortisation features.
+    last_week_pay takes discrete monthly values (4, 9, 13, 17, ...), so the number of
+    installments at the last payment is k = round(weeks * 12 / 52). Comparing the interest
+    actually received with the cumulative scheduled interest after k installments, and
+    inverting the schedule to get the number of installments implied by the interest,
+    exposes missed / irregular payments."""
+    d = d.copy()
+    r = raw["interest_rate"].values / 1200.0; L = raw["loan_amnt"].values.astype(float)
+    term_m = raw["loan_term"].str.extract(r"(\d+)").astype(float)[0].values * 12
+    emi = d["emi"].values; ir = raw["interest_receive"].values
+    k = np.round(raw["last_week_pay"].values * 12 / 52.0)
+    def cum_int(kk):
+        bal = L * (1 + r) ** kk - emi * ((1 + r) ** kk - 1) / r
+        return emi * kk - (L - bal)
+    sched = cum_int(k)
+    d["k_int"] = k
+    d["int_dev_exact"] = (ir - sched) / (sched + 1)
+    d["int_gap_exact"] = ir - sched
+    ks = np.arange(0, max_k + 1)
+    cum = np.stack([cum_int(kk) for kk in ks], axis=1)
+    cum = np.where(ks[None, :] > term_m[:, None], np.inf, cum)
+    idx = np.argmin(np.abs(cum - ir[:, None]), axis=1)
+    d["k_implied"] = idx.astype(float)
+    d["k_implied_resid"] = ir - cum[np.arange(len(ir)), idx]
+    d["k_implied_minus_k"] = d["k_implied"] - k
+    el = np.round(d["weeks_elapsed_est"].values * 12 / 52.0)
+    d["months_elapsed_int"] = el
+    d["installments_missed"] = el - d["k_implied"]
+    d["months_behind_int"] = el - k
+    return d
+
+
+def build(tr, te, exact=True):
     """Full pipeline -> X_train, y, X_test (category dtypes aligned)."""
     vf = vintage_table(tr, te)
     Xtr = add_vintage(prep(tr, True, True), tr, vf)
     Xte = add_vintage(prep(te, True, True), te, vf)
+    if exact:
+        Xtr = add_schedule_exact(Xtr, tr); Xte = add_schedule_exact(Xte, te)
     for c in CAT_COLS:
         cats = pd.api.types.union_categoricals([Xtr[c], Xte[c]]).categories
         Xtr[c] = pd.Categorical(Xtr[c], categories=cats); Xte[c] = pd.Categorical(Xte[c], categories=cats)
