@@ -1,0 +1,19 @@
+{
+ "params": {
+  "learning_rate": 0.046926611298591915,
+  "depth": 7,
+  "l2_leaf_reg": 1.0667181859676387,
+  "random_strength": 0.21985502159958673,
+  "bagging_temperature": 1.0280701196348838,
+  "border_count": 254,
+  "min_data_in_leaf": 3
+ },
+ "iters": [
+  815,
+  660,
+  625,
+  698,
+  891
+ ],
+ "cv_acc": 0.9426878742996974
+}
