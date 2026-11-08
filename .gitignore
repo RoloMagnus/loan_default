@@ -12,3 +12,4 @@ Thumbs.db
 ~$*
 catboost_info/
 work/*.npy
+CONVERSATION_TRANSCRIPT.md
