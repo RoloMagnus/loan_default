@@ -609,7 +609,7 @@ print(submission.shape, "| predicted default rate:", submission["default"].mean(
       "| train default rate:", y.mean().round(4))
 submission.head()""")
 md("""* The file has exactly 39,933 rows with columns `ID` and `default`, as required. The predicted default rate (~25%) is consistent with the training prevalence given the test set's identical vintage mix.
-* **Leaderboard result: 0.9407 accuracy — rank 1** at the time of submission (CV 0.9431; the ~0.24 pt offset matches the calibration measured on earlier submissions).""")
+* **Best leaderboard result: 0.9412 accuracy** (CV 0.9440 for the final 10-fold multi-seed blend; the ~0.25 pt CV-to-leaderboard offset is consistent across all our submissions). The final rank is decided when the hackathon closes.""")
 
 # ============================= INSIGHTS =============================
 md("# **Business Insights and Recommendations**")
