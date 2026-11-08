@@ -590,7 +590,7 @@ oof_orig, _, _ = cv_lgb(X_orig, y)
 print(f"origination-time features only ({X_orig.shape[1]} cols): OOF accuracy = {acc(oof_orig):.4f}")
 print(f"full snapshot feature set: OOF accuracy = {acc(oof_blend):.4f}")
 print(f"majority-class baseline: {max(y.mean(), 1 - y.mean()):.4f}")""")
-md("""* With only application-time information the model barely beats the majority-class baseline — **nearly all predictive power comes from post-origination repayment behaviour**. This quantifies the leakage boundary: the competition features describe a servicing snapshot, and any claim about *approving* applicants must rest on the (much weaker) origination-time model.
+md("""* With only application-time information, accuracy falls to ~82% — above the 76% majority baseline, so application data carries real signal, but far short of the 94%+ achieved with the snapshot features: **the bulk of the predictive power comes from post-origination repayment behaviour**. This quantifies the leakage boundary: the competition features describe a servicing snapshot, and any claim about *approving* applicants must rest on the (much weaker) origination-time model.
 
 **3. Where do the remaining errors live?**""")
 code("""err = (oof_blend > 0.5) != y
@@ -615,7 +615,7 @@ md("""* The file has exactly 39,933 rows with columns `ID` and `default`, as req
 md("# **Business Insights and Recommendations**")
 md("""## Insights
 
-* **Default risk in this portfolio is overwhelmingly a *behavioural* signal, not an application-time one.** A borrower's position relative to their amortisation schedule — installments missed, interest received versus interest scheduled, time since the last payment — explains almost all predictable default. Application-time attributes alone (grade, income, DTI, purpose) barely beat guessing the majority class on this snapshot task.
+* **Default risk in this portfolio is overwhelmingly a *behavioural* signal, not an application-time one.** A borrower's position relative to their amortisation schedule — installments missed, interest received versus interest scheduled, time since the last payment — explains almost all predictable default. Application-time attributes alone (grade, income, DTI, purpose) reach only ~82% accuracy on this snapshot task — meaningfully above the 76% majority baseline, but far below the 94%+ that repayment behaviour delivers.
 * **Raw correlations deceived; cohort structure ruled.** Grade A appeared *riskier* than grade E, and low DTI appeared riskier than high DTI — both artifacts of older vintages having had more exposure time to default. After conditioning on vintage, grade ordering is normal (A 5.0% → G 8.2% in recent vintages). Any portfolio analysis at DHDL must control for loan age before comparing segments.
 * **Missingness is a signal.** Missing account-balance fields mark an old reporting cohort with ~80% default; missing payment history marks brand-new loans with ~0%. Treating these as "data problems to impute away" would have destroyed information.
 * **The earliest reliable alarm is 2–3 missed installments.** Default rates jump from ~3% (≤1 behind) to ~61% (2–3 behind) to ~75%+ (12+ behind). The transition zone of 1–3 missed installments is where intervention can still change outcomes.
