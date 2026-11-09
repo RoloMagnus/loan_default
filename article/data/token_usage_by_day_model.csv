@@ -1,0 +1,7 @@
+day,model,api_calls,cost_usd_list
+2026-11-06,claude-fable-5-1,56,9.05
+2026-11-07,claude-fable-5,57,35.38
+2026-11-07,claude-fable-5-1,56,21.12
+2026-11-08,claude-fable-5,96,88.94
+2026-11-08,claude-sonnet-5-5,54,20.85
+2026-11-09,claude-sonnet-5-5,45,10.66

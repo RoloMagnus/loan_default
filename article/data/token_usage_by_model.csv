@@ -1,0 +1,4 @@
+model,api_calls,first_call,last_call,output_tokens,thinking_tokens,cache_read_tokens,cache_write_tokens,cost_usd_list
+claude-fable-5,153,2026-11-07 06:54:18,2026-11-08 18:39:33,155167,53500,32585716,6717982,124.32
+claude-fable-5-1,112,2026-11-06 22:34:15,2026-11-07 06:53:52,98852,40713,10797202,1799417,30.16
+claude-sonnet-5-5,99,2026-11-08 19:42:27,2026-11-09 17:27:48,171824,103260,27454140,9719790,31.51

@@ -1,0 +1,36 @@
+{
+ "as_of_local": "2026-11-09 17:27",
+ "api_calls": 364,
+ "user_prompts": 85,
+ "tool_calls": 299,
+ "span_hours_first_to_last_call": 66.9,
+ "total_cost_usd_list": 185.99,
+ "cost_components_usd": {
+  "input_uncached": 0.03,
+  "output": 14.42,
+  "cache_read": 40.78,
+  "cache_write": 130.77
+ },
+ "tokens": {
+  "output": 425843,
+  "thinking": 197473,
+  "cache_read": 70837058,
+  "cache_write": 18237189
+ },
+ "context_tokens_per_call": {
+  "median": 247054,
+  "mean": 244718,
+  "max": 455063
+ },
+ "cold_start_calls": 64,
+ "cold_start_share_of_calls": 0.176,
+ "cold_start_share_of_cache_write_tokens": 0.959,
+ "cold_start_cost_usd_list": 123.44,
+ "gaps_over_5min": 72,
+ "gaps_over_30min": 13,
+ "cost_by_model_usd": {
+  "claude-fable-5": 124.32,
+  "claude-fable-5-1": 30.16,
+  "claude-sonnet-5-5": 31.51
+ }
+}
