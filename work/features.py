@@ -136,3 +136,64 @@ def report(name, oof, y):
     ths = np.arange(0.3, 0.7, 0.01); accs = [((oof > t) == y).mean() for t in ths]
     print(f"{name}: acc@0.5={acc:.5f}  best_thr={ths[int(np.argmax(accs))]:.2f} acc={max(accs):.5f}", flush=True)
     return acc
+
+
+def add_offbyone(d, raw):
+    """Off-by-one deviation features (v12): received interest vs schedule at k-1 and k+1 installments,
+    plus which of k-1 / k / k+1 fits best."""
+    d = d.copy()
+    r = raw["interest_rate"].values / 1200.0
+    L = raw["loan_amnt"].values.astype(float)
+    emi = d["emi"].values
+    ir = raw["interest_receive"].values
+    k_raw = np.round(raw["last_week_pay"].values * 12 / 52.0)
+    def cum_int(kk):
+        bal = L * (1 + r) ** kk - emi * ((1 + r) ** kk - 1) / r
+        return emi * kk - (L - bal)
+    s_m1 = cum_int(np.maximum(k_raw - 1, 0)); s_p1 = cum_int(k_raw + 1)
+    d["int_dev_km1"] = (ir - s_m1) / (s_m1 + 1)
+    d["int_dev_kp1"] = (ir - s_p1) / (s_p1 + 1)
+    devs = np.stack([np.abs(ir - s_m1), np.abs(ir - cum_int(k_raw)), np.abs(ir - s_p1)], axis=1)
+    d["best_k_hypothesis"] = np.argmin(devs, axis=1).astype(float)
+    return d
+
+
+def build_v12(tr, te):
+    """Champion v12 feature set: build() + off-by-one deviations."""
+    X, y, Xte = build(tr, te)
+    return add_offbyone(X, tr), y, add_offbyone(Xte, te)
+
+
+def local_k_features(tr, te, Ws=(15, 25, 40), share=0.08):
+    """Local payment-month profile (due-date phase) features.
+    Pooled train+test (target-free) ID-ordered windows over k = installments at last payment.
+    Returns (train_frame, test_frame)."""
+    ids = np.r_[tr["ID"].values, te["ID"].values]
+    lwp = np.r_[tr["last_week_pay"].values, te["last_week_pay"].values]
+    k = np.round(lwp * 12 / 52.0)
+    order = np.argsort(ids, kind="stable"); n = len(ids)
+    ks = k[order]; valid = ~np.isnan(ks)
+    K = int(np.nanmax(ks)) + 2
+    oh = np.zeros((n, K), dtype=np.float32)
+    vi = np.where(valid)[0]; oh[vi, ks[vi].astype(int)] = 1
+    cs = np.vstack([np.zeros((1, K), dtype=np.float64), np.cumsum(oh, axis=0, dtype=np.float64)])
+    rows = np.arange(n); kk = np.where(valid, ks, 0).astype(int)
+    feats = {}
+    for W in Ws:
+        lo = np.clip(rows - W, 0, n); hi = np.clip(rows + W + 1, 0, n)
+        C = (cs[hi] - cs[lo]).astype(np.float32); tot = np.maximum(C.sum(1), 1)
+        mode = C.argmax(1)
+        mask = C >= share * tot[:, None]
+        rmax = K - 1 - np.argmax(mask[:, ::-1], axis=1)
+        c_eq = C[rows, kk]; Cc = np.cumsum(C, axis=1); n_le = Cc[rows, kk]; n_lt = n_le - c_eq
+        c_r = C[rows, rmax]; c_r1 = C[rows, np.maximum(rmax - 1, 0)]
+        f = {f"lk{W}_mode": mode.astype(float), f"lk{W}_rmax": rmax.astype(float),
+             f"lk{W}_k_minus_mode": ks - mode, f"lk{W}_k_minus_rmax": ks - rmax,
+             f"lk{W}_frac_lt": n_lt / tot, f"lk{W}_frac_eq": c_eq / tot, f"lk{W}_mode_share": C.max(1) / tot,
+             f"lk{W}_phase": c_r / np.maximum(c_r + c_r1, 1)}
+        for name, v in f.items():
+            v = np.asarray(v, dtype=float); v[~valid] = np.nan; feats[name] = v
+    F = pd.DataFrame(feats)
+    inv = np.empty(n, dtype=int); inv[order] = np.arange(n)
+    F = F.iloc[inv].reset_index(drop=True)
+    return F.iloc[:len(tr)].reset_index(drop=True), F.iloc[len(tr):].reset_index(drop=True)
