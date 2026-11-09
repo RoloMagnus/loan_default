@@ -197,3 +197,35 @@ def local_k_features(tr, te, Ws=(15, 25, 40), share=0.08):
     inv = np.empty(n, dtype=int); inv[order] = np.arange(n)
     F = F.iloc[inv].reset_index(drop=True)
     return F.iloc[:len(tr)].reset_index(drop=True), F.iloc[len(tr):].reset_index(drop=True)
+
+
+def gap_norm_features(tr, te, X, Xte, F, Fte, Ws=(60, 150), kgroup_m=None):
+    """Cohort-normalised interest deviation (label-free, pooled train+test, ID-ordered).
+    gap_m = (interest received - scheduled interest at k) / monthly interest. Baseline = rolling median of gap_m among
+    current-level loans (k == local robust max, W=40 window feature) over ID windows; optional second baseline = median over
+    loans with the SAME k among ID-neighbours within that k group (kgroup_m = half-window in group positions)."""
+    raw = pd.concat([tr.drop(columns=["default"], errors="ignore"), te], ignore_index=True)
+    Xa = pd.concat([X.reset_index(drop=True), Xte.reset_index(drop=True)], ignore_index=True)
+    Fa = pd.concat([F.reset_index(drop=True), Fte.reset_index(drop=True)], ignore_index=True)
+    r = raw["interest_rate"].values / 1200; L = raw["loan_amnt"].values.astype(float)
+    gap_m = Xa["int_gap_exact"].values / (L * r)
+    cur = Fa["lk40_k_minus_rmax"].values == 0
+    ids = raw["ID"].values; order = np.argsort(ids, kind="stable"); n = len(ids)
+    inv = np.empty(n, dtype=int); inv[order] = np.arange(n)
+    base_series = pd.Series(np.where(cur, gap_m, np.nan)[order])
+    out = pd.DataFrame({"gap_m": gap_m})
+    for W in Ws:
+        roll = base_series.rolling(2 * W + 1, center=True, min_periods=15)
+        med = roll.median().values[inv]; iqr = (roll.quantile(0.75).values - roll.quantile(0.25).values)[inv]
+        out[f"gapbase{W}"] = med; out[f"gapiqr{W}"] = iqr
+        out[f"gap_rel{W}"] = gap_m - med; out[f"gap_z{W}"] = (gap_m - med) / (iqr + 0.02)
+    if kgroup_m:
+        k = Xa["k_int"].values
+        d = pd.DataFrame({"k": k, "id": ids, "gap": gap_m, "pos": np.arange(n)}).dropna(subset=["k"]).sort_values(["k", "id"])
+        w = 2 * kgroup_m + 1
+        d["kmed"] = d.groupby("k")["gap"].transform(lambda s: s.rolling(w, center=True, min_periods=5).median())
+        d["kiqr"] = d.groupby("k")["gap"].transform(lambda s: s.rolling(w, center=True, min_periods=5).quantile(0.75) - s.rolling(w, center=True, min_periods=5).quantile(0.25))
+        kmed = pd.Series(np.nan, index=range(n)); kiqr = pd.Series(np.nan, index=range(n))
+        kmed.loc[d["pos"].values] = d["kmed"].values; kiqr.loc[d["pos"].values] = d["kiqr"].values
+        out["gapbase_k"] = kmed.values; out["gap_rel_k"] = gap_m - kmed.values; out["gap_z_k"] = (gap_m - kmed.values) / (kiqr.values + 0.02)
+    return out.iloc[:len(tr)].reset_index(drop=True), out.iloc[len(tr):].reset_index(drop=True)
