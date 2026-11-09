@@ -55,3 +55,23 @@ sub.to_csv(os.path.join(DATA, "submissions", f"submission_{TAG}.csv"), index=Fal
 v12 = pd.read_csv(os.path.join(DATA, "submissions", "submission_v12_offbyone.csv"))["default"].values
 print(f"v13 written | pred_pos {int(newpred.sum())} | differs from v12 on {int((newpred != v12).sum())} rows")
 np.save(os.path.join(HERE, f"oof_{TAG}.npy"), oof); np.save(os.path.join(HERE, f"tst_{TAG}.npy"), tst)
+
+
+# ---------------- repayment-signature override (exp39): unanimous labels from >=2 matching train loans ----------------
+SIG = ["loan_amnt", "interest_rate", "loan_term", "interest_receive", "last_week_pay"]
+key = lambda d: d[SIG].astype(str).agg("|".join, axis=1)
+ktr, kte = key(tr), key(te)
+g = tr.groupby(ktr)["default"].agg(["size", "sum"])
+n_all = ktr.map(g["size"]).values; s_all = ktr.map(g["sum"]).values
+n_o = n_all - 1; s_o = s_all - y
+rule_tr = (n_o >= 2) & ((s_o == 0) | (s_o == n_o)); lab_tr = (s_o == n_o).astype(int)
+pc = (oof > 0.5).astype(int)
+fixed = int(((pc != y) & (lab_tr == y) & rule_tr).sum()); broken = int(((pc == y) & (lab_tr != y) & rule_tr).sum())
+pv = binomtest(fixed, fixed + broken, 0.5).pvalue if fixed + broken else 1.0
+print(f"\nSIGNATURE OVERRIDE (OOF, leave-one-out): rule rows {int(rule_tr.sum())} | fixes {fixed} breaks {broken} net {fixed-broken:+d} p={pv:.4f}")
+nt = kte.map(g["size"]).fillna(0).values; st = kte.map(g["sum"]).fillna(0).values
+rule_te = (nt >= 2) & ((st == 0) | (st == nt)); lab_te = (st == nt).astype(int)
+sig_pred = newpred.copy(); sig_pred[rule_te] = lab_te[rule_te]
+print(f"test: rule rows {int(rule_te.sum())} | overrides that change the submission: {int((sig_pred != newpred).sum())}")
+pd.DataFrame({"ID": te["ID"], "default": sig_pred}).to_csv(os.path.join(DATA, "submissions", f"submission_{TAG}_sig.csv"), index=False)
+print(f"written submission_{TAG}_sig.csv | pred_pos {int(sig_pred.sum())}")
