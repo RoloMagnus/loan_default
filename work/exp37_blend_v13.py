@@ -3,7 +3,7 @@ import os, sys, itertools, numpy as np, pandas as pd
 from scipy.stats import binomtest
 from sklearn.isotonic import IsotonicRegression
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-DATA = sys.argv[1]; P_TRUE = 9590
+DATA = sys.argv[1]; P_TRUE = 9590; TAG = sys.argv[2] if len(sys.argv) > 2 else "v13_phase"
 tr = pd.read_csv(f"{DATA}/Train_set.csv"); te = pd.read_csv(f"{DATA}/Test_set.csv"); y = tr["default"].values
 ld = lambda n: (np.load(os.path.join(HERE, f"v13_{n}_oof.npy")), np.load(os.path.join(HERE, f"v13_{n}_tst.npy")))
 acc = lambda p: ((p > 0.5) == y).mean()
@@ -51,7 +51,7 @@ if k_opt and cum.max() >= 1.0:
 else:
     print("flips SKIPPED (EV < 1 row)")
 sub = pd.DataFrame({"ID": te["ID"], "default": newpred})
-sub.to_csv(os.path.join(DATA, "submissions", "submission_v13_phase.csv"), index=False)
+sub.to_csv(os.path.join(DATA, "submissions", f"submission_{TAG}.csv"), index=False)
 v12 = pd.read_csv(os.path.join(DATA, "submissions", "submission_v12_offbyone.csv"))["default"].values
 print(f"v13 written | pred_pos {int(newpred.sum())} | differs from v12 on {int((newpred != v12).sum())} rows")
-np.save(os.path.join(HERE, "oof_v13.npy"), oof); np.save(os.path.join(HERE, "tst_v13.npy"), tst)
+np.save(os.path.join(HERE, f"oof_{TAG}.npy"), oof); np.save(os.path.join(HERE, f"tst_{TAG}.npy"), tst)
