@@ -29,7 +29,7 @@ subs = [  # (champion label, LB accuracy, note)
     ("v5", 0.9412766, "5-seed farm"), ("v6", 0.9409261, "redraw"), ("v7", 0.9412516, "redraw"),
     ("v8", 0.9409761, "redraw"), ("v10", 0.9413768, "probe-calibrated\nthreshold (+6 rows)"),
     ("v11", 0.9413267, "redraw"), ("v12", 0.9416773, "off-by-one\nschedule features"),
-    ("v13b", 0.9425538, "due-date phase\nfeatures"), ("v14a", 0.9435555, "+ cohort-normalised\ninterest gaps"),
+    ("v13b", 0.9425538, "due-date phase\nfeatures"), ("v14a", 0.9435555, "+ cohort\ninterest gaps"),
     ("v14b", 0.9438309, "2nd CatBoost seed"),
 ]
 rivals = [(1.6, 0.9383968, "Jay Solo Army 0.93840", (0, -13)), (5.6, 0.9415521, "Wonder 0.94155", (0, 5)),
@@ -270,3 +270,35 @@ table_image("T4_experiment_verdicts.png",
 
 print("figures:", sorted(os.listdir(FIG)))
 print("tables:", sorted(os.listdir(TAB)))
+
+# ---------------- F6: feature-ablation ladder ----------------
+ladder = [  # (label, CV accuracy, kind)  kind: f=feature family, m=model/ensemble work, c=calibration
+    ("raw columns,\nLightGBM", 0.8777, "m"),
+    ("+ ratios\n& EMI", 0.9070, "f"),
+    ("+ ID as\nloan-age clock", 0.9294, "f"),
+    ("+ weeks since\nlast payment", 0.9305, "f"),
+    ("+ installments\nmissed (exact\nschedule)", 0.9412, "f"),
+    ("+ tuning, 10-fold\n3-model blend", 0.9440, "m"),
+    ("+ off-by-one\ndeviations", 0.9442, "f"),
+    ("+ due-date\nphase", 0.9450, "f"),
+    ("+ cohort\ninterest gaps", 0.9462, "f"),
+]
+fig, ax = plt.subplots(figsize=(12.2, 5.4))
+xx = np.arange(len(ladder)); yy = [l[1] for l in ladder]
+cols = {"f": BLUE, "m": YELLOW, "c": AQUA}
+ax.bar(xx, yy, color=[cols[l[2]] for l in ladder], width=0.62)
+for i, v in enumerate(yy):
+    d = f"+{(yy[i]-yy[i-1])*100:.2f}" if i else ""
+    ax.annotate(f"{v:.4f}\n{d}", (i, v), xytext=(0, 5), textcoords="offset points", ha="center", fontsize=9)
+ax.set_ylim(0.87, 0.952)
+ax.set_xticks(xx, [l[0] for l in ladder], fontsize=8.4)
+ax.tick_params(axis="x", pad=4)
+ax.set_ylabel("5–10 fold out-of-fold accuracy")
+import matplotlib.patches as mpatches
+ax.legend(handles=[mpatches.Patch(color=BLUE, label="domain feature family (loan mechanics)"),
+                   mpatches.Patch(color=YELLOW, label="model & ensemble work")],
+          loc="upper left", frameon=False, fontsize=9.5)
+ax.set_title("The ablation ladder: 6.8 pp of accuracy, and 6.0 pp of it came from reconstructing loan mechanics — not from bigger models")
+ax.grid(axis="x", visible=False)
+fig.savefig(os.path.join(FIG, "F6_feature_ladder.png"), **SAVE); plt.close(fig)
+print("F6 written")
